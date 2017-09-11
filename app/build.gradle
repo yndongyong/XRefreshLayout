@@ -1,0 +1,39 @@
+apply plugin: 'com.android.application'
+
+def configs = rootProject.ext.configuration
+def libs = rootProject.ext.libraries
+
+android {
+    compileSdkVersion configs.compileSdkVersion
+    buildToolsVersion configs.buildToolsVersion
+    defaultConfig {
+        applicationId "com.yndongyong.demo.xrefreshlayout"
+        minSdkVersion configs.minSdk
+        targetSdkVersion configs.targetSdk
+        versionCode configs.version_code
+        versionName configs.version_name
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    compile fileTree(include: ['*.jar'], dir: 'libs')
+    androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
+        exclude group: 'com.android.support', module: 'support-annotations'
+    })
+
+    compile project(':xrefresh')
+
+    compile "com.android.support:recyclerview-v7:${libs.supportVersion}"
+    compile "com.android.support:appcompat-v7:${libs.supportVersion}"
+    compile "com.android.support.constraint:constraint-layout:${libs.constraintLayoutVersion}"
+
+    compile 'com.android.support.constraint:constraint-layout:1.0.2'
+    testCompile 'junit:junit:4.12'
+}
