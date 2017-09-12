@@ -1,13 +1,9 @@
 package com.yndongyong.xrefreshlayout;
 
-import android.support.v4.view.ViewCompat;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
-
-import static com.android.internal.app.IntentForwarderActivity.TAG;
 
 /**
  * Created by ad15 on 2017/9/4.
@@ -37,9 +33,22 @@ public class BasicNormalHeaderView implements XHeaderView {
         return rootView;
     }
 
+    /**
+     *
+     * @param overscrollTop 拖动的距离
+     * @param viewHeight  header 的高度
+     * @param offsetTop  spinner 距离 屏幕顶部的距离 [-height,0]
+     */
     @Override
-    public void moveSpinner(int overscrollTop, int viewHeight) {
-
+    public void moveSpinner(int overscrollTop, int viewHeight, int offsetTop) {
+        offsetTop = Math.abs(offsetTop);
+        if (offsetTop / viewHeight < 1/3 ) {
+            tv_tips.setText("释放去刷新");
+        } else if (offsetTop / viewHeight > 1 / 3) {
+            tv_tips.setText("下拉刷新");
+        } else {
+            tv_tips.setText("正在刷新");
+        }
     }
 
 

@@ -15,7 +15,7 @@ interface XHeaderView {
      * @param overscrollTop 拖动的距离
      * @param viewHeight  header 的高度
      */
-    void moveSpinner(int overscrollTop, int viewHeight);
+    void moveSpinner(int overscrollTop, int viewHeight ,int offsetTop);
 
     /**
      * 手机释放

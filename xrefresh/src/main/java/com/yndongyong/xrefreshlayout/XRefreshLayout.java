@@ -182,21 +182,20 @@ public class XRefreshLayout extends ViewGroup {
                 mDragDistances = event.getY() - mInitialDownY;
                 final float overscrollTop = (mDragDistances) * DRAG_RATE;
                 Log.d(TAG, "onTouchEvent  overscrollTop： " + overscrollTop);
-                mHeaderView.moveSpinner((int) overscrollTop, mHeaderViewHeight);
+
+
 
                 float originalDragPercent = overscrollTop / mHeaderViewHeight;
-
                 float dragPercent = Math.min(1f, Math.abs(originalDragPercent));
-                float extraOS = Math.abs(overscrollTop) - mHeaderViewHeight;
+                float extraOS = Math.abs(overscrollTop) - mHeaderViewHeight/3;
                 float slingshotDist = mHeaderViewHeight/2;
-                float tensionSlingshotPercent = Math.max(0, Math.min(extraOS, slingshotDist * 2)
-                        / slingshotDist);
+                float tensionSlingshotPercent = Math.max(0, Math.min(extraOS , slingshotDist*2) / slingshotDist);
                 float tensionPercent = (float) ((tensionSlingshotPercent / 4) - Math.pow(
                         (tensionSlingshotPercent / 4), 2)) * 2f;
-                float extraMove = (slingshotDist) * tensionPercent * 2;
-
+                float extraMove = mHeaderViewHeight* tensionPercent ;
                 int targetY = (int) (mSipperOriginalTop + (int) ((slingshotDist * dragPercent) + extraMove));
                 ViewCompat.offsetTopAndBottom(mHeaderView.getView(),  targetY  - mOffsetTop);
+                mHeaderView.moveSpinner((int) overscrollTop, mHeaderViewHeight, mOffsetTop);
                 mOffsetTop = mHeaderView.getView().getTop();
 
                 break;
