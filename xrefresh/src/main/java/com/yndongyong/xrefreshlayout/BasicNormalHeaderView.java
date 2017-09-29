@@ -1,8 +1,10 @@
 package com.yndongyong.xrefreshlayout;
 
+import android.animation.ObjectAnimator;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 /**
@@ -12,10 +14,11 @@ import android.widget.TextView;
 public class BasicNormalHeaderView implements XHeaderView {
 
     private ViewGroup parent;
-    private TextView tv_tips;
     private View rootView;
 
     private int height;
+    private ImageView iv_arrow;
+    private ImageView iv_progress;
 
     public BasicNormalHeaderView(ViewGroup _parent) {
         this.parent = _parent;
@@ -24,7 +27,8 @@ public class BasicNormalHeaderView implements XHeaderView {
 
     private void initView() {
         rootView = LayoutInflater.from(parent.getContext()).inflate(R.layout.basic_normal_header_view_layout, parent, false);
-        tv_tips = (TextView) rootView.findViewById(R.id.tv_tips);
+        iv_arrow = (ImageView) rootView.findViewById(R.id.iv_arrow);
+        iv_progress = (ImageView) rootView.findViewById(R.id.iv_progress);
     }
 
 
@@ -34,26 +38,25 @@ public class BasicNormalHeaderView implements XHeaderView {
     }
 
     /**
-     *
      * @param overscrollTop 拖动的距离
-     * @param viewHeight  header 的高度
-     * @param offsetTop  spinner 距离 屏幕顶部的距离 [-height,0]
+     * @param viewHeight    header 的高度
+     * @param offsetTop     spinner 距离 屏幕顶部的距离 [-height,0]
      */
     @Override
     public void moveSpinner(int overscrollTop, int viewHeight, int offsetTop) {
-        offsetTop = Math.abs(offsetTop);
-        if (offsetTop / viewHeight < 1/3 ) {
-            tv_tips.setText("释放去刷新");
-        } else if (offsetTop / viewHeight > 1 / 3) {
-            tv_tips.setText("下拉刷新");
-        } else {
-            tv_tips.setText("正在刷新");
-        }
+
     }
 
 
     @Override
     public void finishSpinner(float offsetTop) {
 
+    }
+
+    public void changeReleaseToRefresh() {
+//        tv_tips.setText("释放去刷新");
+    }
+
+    public void changeToRefresh() {
     }
 }

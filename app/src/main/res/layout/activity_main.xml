@@ -7,6 +7,7 @@
     tools:context="com.yndongyong.demo.xrefreshlayout.MainActivity">
 
     <com.yndongyong.xrefreshlayout.XRefreshLayout
+        android:id="@+id/refresh_layout"
         android:layout_width="0dp"
         android:layout_height="0dp"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -14,25 +15,28 @@
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toTopOf="parent" >
 
-        <!--<android.support.v7.widget.RecyclerView
+        <android.support.v7.widget.RecyclerView
+            android:id="@+id/recyclerview"
+            app:layoutManager="LinearLayoutManager"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintRight_toRightOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            />-->
-        <TextView
+            />
+       <!-- <TextView
             android:id="@+id/tv_tips"
             android:layout_width="match_parent"
             android:layout_height="200dp"
-            android:background="@android:color/black"
+            android:background="@android:color/darker_gray"
             android:gravity="center"
-            android:text="HEADER"
+            android:text="CONTENT"
             app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintRight_toRightOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            android:textColor="@android:color/white" />
+            android:textColor="@android:color/white" />-->
+
     </com.yndongyong.xrefreshlayout.XRefreshLayout>
 
 </android.support.constraint.ConstraintLayout>

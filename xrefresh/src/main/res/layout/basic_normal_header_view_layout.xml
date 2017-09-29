@@ -1,15 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="100dp"
+    android:gravity="center"
     android:orientation="vertical">
 
-    <TextView
-        android:id="@+id/tv_tips"
-        android:layout_width="match_parent"
-        android:layout_height="100dp"
-        android:background="@android:color/black"
-        android:gravity="center"
-        android:text="HEADER"
+    <ImageView
+        android:id="@+id/iv_arrow"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/ic_arrow_upward_black_24dp"
         android:textColor="@android:color/white" />
-</LinearLayout>
+
+    <ImageView
+        android:id="@+id/iv_progress"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/ic_refresh_header_loading"
+        android:textColor="@android:color/white"
+        android:visibility="gone"
+        tools:visibility="visible" />
+
+</RelativeLayout>

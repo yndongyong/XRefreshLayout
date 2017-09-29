@@ -22,4 +22,7 @@ interface XHeaderView {
      * @param offsetTop
      */
     void finishSpinner(float offsetTop);
+
+    public void changeReleaseToRefresh() ;
+    public void changeToRefresh();
 }
