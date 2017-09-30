@@ -1,18 +1,14 @@
 package com.yndongyong.demo.xrefreshlayout;
 
-import android.graphics.ColorFilter;
-import android.graphics.ColorMatrixColorFilter;
-import android.graphics.LightingColorFilter;
-import android.graphics.drawable.Drawable;
+import android.animation.ValueAnimator;
 import android.os.Bundle;
-import android.support.v4.content.ContextCompat;
-import android.support.v4.view.ViewCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
+import android.view.animation.Animation;
+import android.view.animation.RotateAnimation;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 public class Main2Activity extends AppCompatActivity implements View.OnClickListener {
 
@@ -20,6 +16,7 @@ public class Main2Activity extends AppCompatActivity implements View.OnClickList
     private Button btn_dwon;
     private TextView tv_tips;
     private ImageView ic_mute;
+    private ImageView iv_arrow;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,10 +28,10 @@ public class Main2Activity extends AppCompatActivity implements View.OnClickList
     private void initView() {
         btn_up = (Button) findViewById(R.id.btn_up);
         btn_dwon = (Button) findViewById(R.id.btn_dwon);
+        iv_arrow = (ImageView) findViewById(R.id.iv_arrow);
 
         btn_up.setOnClickListener(this);
         btn_dwon.setOnClickListener(this);
-        tv_tips = (TextView) findViewById(R.id.tv_tips);
         ic_mute = (StatusImageView) findViewById(R.id.ic_mute);
        /* ic_mute.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -48,10 +45,28 @@ public class Main2Activity extends AppCompatActivity implements View.OnClickList
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.btn_up:
-                ViewCompat.offsetTopAndBottom(tv_tips,-30);
+//                ViewCompat.offsetTopAndBottom(tv_tips,-30);
+                final ValueAnimator anim = ValueAnimator.ofFloat(0f, 180f).setDuration(200);
+                anim.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                    @Override
+                    public void onAnimationUpdate(ValueAnimator animation) {
+                        iv_arrow.setRotation((Float) animation.getAnimatedValue());
+                        iv_arrow.requestLayout();
+                    }
+                });
+                anim.start();
                 break;
             case R.id.btn_dwon:
-                ViewCompat.offsetTopAndBottom(tv_tips,30);
+//                ViewCompat.offsetTopAndBottom(tv_tips,30);
+                final ValueAnimator anim1 = ValueAnimator.ofFloat(180f,0f).setDuration(200);
+                anim1.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                    @Override
+                    public void onAnimationUpdate(ValueAnimator animation) {
+                        iv_arrow.setRotation((Float) animation.getAnimatedValue());
+                        iv_arrow.requestLayout();
+                    }
+                });
+                anim1.start();
                 break;
         }
     }

@@ -121,7 +121,8 @@ public class XRefreshLayout extends ViewGroup {
 
     private void createHeader() {
         mHeaderView = new BasicNormalHeaderView(this);
-        addView(mHeaderView.getView(), MATCH_PARENT, WRAP_CONTENT);
+        ViewGroup.LayoutParams layoutParams = mHeaderView.getView().getLayoutParams();
+        addView(mHeaderView.getView(), layoutParams != null ? layoutParams : new ViewGroup.LayoutParams(MATCH_PARENT, WRAP_CONTENT));
     }
 
     @Override
@@ -153,6 +154,7 @@ public class XRefreshLayout extends ViewGroup {
         ensureTarget();
         if (mHeaderView != null) {
             View headV = mHeaderView.getView();
+            measureChild(headV, widthMeasureSpec, heightMeasureSpec);
             LayoutParams lp = (LayoutParams) headV.getLayoutParams();
             int height = lp.height;
             int width = lp.width;
@@ -161,16 +163,15 @@ public class XRefreshLayout extends ViewGroup {
             if (height == WRAP_CONTENT) {
                 int heightM = MeasureSpec.makeMeasureSpec(MeasureSpec.getSize(heightMeasureSpec), MeasureSpec.AT_MOST);
                 headV.measure(widthM, heightM);
-                mHeaderViewHeight = headV.getMeasuredHeight();
-                mSipperInitTop = -headV.getMeasuredHeight();
-                mSipperCurrentOffset = mSipperInitTop;
-                mSipperEndOffset = mHeaderViewHeight;
-                // TODO: 2017/9/8
-//                mHeaderView.moveSpinner(,mSipperInitTop);
-//               ;
-//                ViewCompat.offsetTopAndBottom(mHeaderView.getView(),  (mSipperInitTop - mHeaderView.getView().getTop()));
 
+            } else {
+                int heightM = MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY);
+                headV.measure(widthM, heightM);
             }
+            mSipperInitTop = -headV.getMeasuredHeight();
+            mSipperCurrentOffset = mSipperInitTop;
+            mSipperEndOffset = headV.getMeasuredHeight();
+            mHeaderViewHeight = headV.getMeasuredHeight();
         }
         if (mTargetView != null) {
             int targetMeasureWidthSpec = MeasureSpec.makeMeasureSpec(
@@ -178,7 +179,7 @@ public class XRefreshLayout extends ViewGroup {
             int targetMeasureHeightSpec = MeasureSpec.makeMeasureSpec(
                     getMeasuredHeight() - getPaddingTop() - getPaddingBottom(), MeasureSpec.EXACTLY);
             mTargetView.measure(targetMeasureWidthSpec, targetMeasureHeightSpec);
-            mTargetInitOffset = mTargetView.getTop();
+            mTargetInitOffset = 0;
             mTargetCurrentOffset = mTargetInitOffset;
             mTargetRefreshOffset = mHeaderViewHeight;
 
@@ -193,7 +194,7 @@ public class XRefreshLayout extends ViewGroup {
         }
         if (mHeaderView != null) {
             View headV = mHeaderView.getView();
-            mHeaderView.getView().layout(0, mSipperCurrentOffset, headV.getMeasuredWidth(), headV.getMeasuredHeight());
+            mHeaderView.getView().layout(0, mSipperCurrentOffset, headV.getMeasuredWidth(), mSipperCurrentOffset + headV.getMeasuredHeight());
         }
         final int width = getMeasuredWidth();
         final int height = getMeasuredHeight();
@@ -286,10 +287,6 @@ public class XRefreshLayout extends ViewGroup {
                             // 再dispatch一次move事件，消耗掉所有dy
                             event.offsetLocation(0, -offsetLoc);
                             dispatchTouchEvent(event);
-
-
-//                        event.setAction(MotionEvent.ACTION_CANCEL);
-//                        super.dispatchTouchEvent(event);
                         }
                     }
                     mLastMotionY = y;
@@ -298,20 +295,6 @@ public class XRefreshLayout extends ViewGroup {
                 break;
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
-               /* mDragDistances = event.getY() - mInitialDownY;
-                float scrollTop = (mDragDistances) * DRAG_RATE;
-                Log.d(TAG, "onTouchEvent  overscrollTop： " + scrollTop);
-
-                if (scrollTop > -10) {
-                    mHeaderView.changeToRefresh();
-                    postDelayed(new Runnable() {
-                        @Override
-                        public void run() {
-                            ViewCompat.offsetTopAndBottom(mHeaderView.getView(),  mSipperInitTop - mSipperCurrentOffset);
-                            mSipperCurrentOffset =  mSipperInitTop;
-                        }
-                    }, 3000);
-                }*/
                 if (mIsDraging) {
                     mIsDraging = false;
                     final float y1 = event.getY();
@@ -349,6 +332,7 @@ public class XRefreshLayout extends ViewGroup {
                 @Override
                 public void onAnimationEnd(Animator animation) {
                     super.onAnimationEnd(animation);
+                    mHeaderView.changeToRefresh();
                     if (refreshListener != null) {
                         refreshListener.onRefresh();
                     }
@@ -364,6 +348,7 @@ public class XRefreshLayout extends ViewGroup {
 
 
     private void moveToInitPosition() {
+        mHeaderView.changeToIdle();
         final int startValue = mTargetCurrentOffset;
         ValueAnimator valueAnimator = ValueAnimator.ofInt(startValue, mTargetInitOffset);
         valueAnimator.setInterpolator(accelerateInterpolator);
@@ -413,6 +398,8 @@ public class XRefreshLayout extends ViewGroup {
         int offset = target - mSipperCurrentOffset;
         ViewCompat.offsetTopAndBottom(mHeaderView.getView(), offset);
         mSipperCurrentOffset = mHeaderView.getView().getTop();
+        mHeaderView.onPull(mTargetCurrentOffset, mTargetInitOffset, mTargetRefreshOffset);
+
         return offset;
     }
 
@@ -426,12 +413,14 @@ public class XRefreshLayout extends ViewGroup {
     private int caculateSipperNewoffset1(int overscrollTop) {
         int targetY = 0;
         if (mTargetCurrentOffset >= mTargetRefreshOffset) {
+            //超过刷新线
             targetY = mTargetInitOffset;
-        } else if (mTargetCurrentOffset >= mTargetInitOffset) {
-            targetY = overscrollTop + mSipperCurrentOffset;
-        } else {
-            //mTargetCurrentOffset< mTargetInitOffset
+        } else if (mTargetCurrentOffset <= mTargetInitOffset) {
             targetY = mSipperInitTop;
+            //达到初始线
+        } else {
+            //中间过程
+            targetY = overscrollTop + mSipperCurrentOffset;
         }
         return targetY;
     }
@@ -486,5 +475,14 @@ public class XRefreshLayout extends ViewGroup {
 
     public interface RefreshListener {
         void onRefresh();
+    }
+
+    interface States {
+
+        int IDLE = 0;//当前是空闲
+        int PULL = 1;//下拉过程中
+        int REFRESH = 2;//刷新中
+        int VOER_SCROLL = 3;//回滚到初始状态
+
     }
 }
