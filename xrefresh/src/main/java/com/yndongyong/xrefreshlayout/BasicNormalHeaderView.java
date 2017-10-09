@@ -83,15 +83,6 @@ public class BasicNormalHeaderView implements XHeaderView {
     private void changeToIdle() {
         final ValueAnimator anim1 = ValueAnimator.ofFloat(180f, 0f).setDuration(rootView.getResources().getInteger(
                 android.R.integer.config_mediumAnimTime));
-        anim1.addListener(new AnimatorListenerAdapter() {
-            @Override
-            public void onAnimationEnd(Animator animation) {
-                super.onAnimationEnd(animation);
-                reset();
-
-            }
-
-        });
         anim1.start();
     }
 
