@@ -1,14 +1,15 @@
 package com.yndongyong.xrefreshlayout;
 
-import android.animation.ObjectAnimator;
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.Animation;
+import android.view.animation.LinearInterpolator;
 import android.view.animation.RotateAnimation;
 import android.widget.ImageView;
-import android.widget.TextView;
 
 /**
  * Created by ad15 on 2017/9/4.
@@ -16,17 +17,13 @@ import android.widget.TextView;
 
 public class BasicNormalHeaderView implements XHeaderView {
 
-    int currentStatus  = XRefreshLayout.States.IDLE;
+    int currentStatus = XRefreshLayout.States.IDLE;
 
     private ViewGroup parent;
     private View rootView;
 
-    private int height;
     private ImageView iv_arrow;
     private ImageView iv_progress;
-    private ValueAnimator valueAnimator;
-
-    private boolean flag = false;
 
     public BasicNormalHeaderView(ViewGroup _parent) {
         this.parent = _parent;
@@ -45,24 +42,16 @@ public class BasicNormalHeaderView implements XHeaderView {
         return rootView;
     }
 
+    /**
+     * 下拉过程中触发
+     *
+     * @param targetCurrentOffset target当前的位置，
+     * @param targetInitOffset    target的初始位置
+     * @param targetRefreshOffset target 触发刷新的位置
+     */
     @Override
     public void onPull(int targetCurrentOffset, int targetInitOffset, int targetRefreshOffset) {
-        if (targetCurrentOffset >= targetRefreshOffset) {
-            if (!flag) {
-                flag = !flag;
-                roteToUp();
-            }
 
-            //超过刷新位置
-        } else {
-           /* if (targetCurrentOffset >= targetRefreshOffset / 2) {
-                //超过刷新位置的一半
-                if (!flag) {
-                    flag = !flag;
-                    roteToDown();
-                }
-            }*/
-        }
     }
 
     private void roteToUp() {
@@ -71,58 +60,80 @@ public class BasicNormalHeaderView implements XHeaderView {
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
                 iv_arrow.setRotation((Float) animation.getAnimatedValue());
-                iv_arrow.requestLayout();
             }
         });
         anim.start();
     }
 
-    private void roteToDown() {
-        final ValueAnimator anim1 = ValueAnimator.ofFloat(180f,0f).setDuration(200);
-        anim1.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+    /**
+     * 恢复到初始状态
+     */
+    private void reset() {
+        iv_progress.clearAnimation();
+        iv_arrow.clearAnimation();
+        iv_arrow.setVisibility(View.VISIBLE);
+        iv_arrow.setRotation(0f);
+        iv_progress.setVisibility(View.INVISIBLE);
+        currentStatus = XRefreshLayout.States.IDLE;
+    }
+
+    /**
+     * 要保证动画时间和headerview隐藏的时间一致 采用系统的 mediumAnimTime
+     */
+    private void changeToIdle() {
+        final ValueAnimator anim1 = ValueAnimator.ofFloat(180f, 0f).setDuration(rootView.getResources().getInteger(
+                android.R.integer.config_mediumAnimTime));
+        anim1.addListener(new AnimatorListenerAdapter() {
             @Override
-            public void onAnimationUpdate(ValueAnimator animation) {
-                iv_arrow.setRotation((Float) animation.getAnimatedValue());
-                iv_arrow.requestLayout();
+            public void onAnimationEnd(Animator animation) {
+                super.onAnimationEnd(animation);
+                reset();
+
             }
+
         });
         anim1.start();
     }
 
 
-    public void changeReleaseToRefresh() {
-//        tv_tips.setText("释放去刷新");
+    private void changeReleaseToRefresh() {
+        roteToUp();
     }
 
-    public void changeToRefresh() {
-        /*final RotateAnimation animation = new RotateAnimation(0f, 360f, Animation.RELATIVE_TO_SELF,
+    private void changeToRefresh() {
+        final RotateAnimation animation = new RotateAnimation(0f, 360f, Animation.RELATIVE_TO_SELF,
                 0.5f, Animation.RELATIVE_TO_SELF, 0.5f);
-        animation.setDuration(3000);//设置动画持续时间
+        animation.setDuration(1000);//设置动画持续时间
         animation.setRepeatCount(-1);//设置重复次数
-        animation.setFillAfter(true);//动画执行完后是否停留在执行完的状态
-        //
-        iv_arrow.setVisibility(View.GONE);
-        iv_progress.setVisibility(View.VISIBLE);
-        iv_progress.setAnimation(animation);
-        animation.startNow();*/
-    }
+        animation.setInterpolator(new LinearInterpolator());
+//        animation.setFillAfter(true);//动画执行完后是否停留在执行完的状态
 
-    @Override
-    public void changeToIdle() {
-        flag = !flag;
-        /*final RotateAnimation animation = new RotateAnimation(-180f, 0f, Animation.RELATIVE_TO_SELF,
-                0.5f, Animation.RELATIVE_TO_SELF, 0.5f);
-        animation.setDuration(200);//设置动画持续时间
-        animation.setFillAfter(true);//动画执行完后是否停留在执行完的状态
-        iv_arrow.setVisibility(View.VISIBLE);
-        iv_progress.setVisibility(View.GONE);
-        iv_arrow.setAnimation(animation);
-        animation.startNow();*/
+        //
+        iv_arrow.setVisibility(View.INVISIBLE);
+        iv_progress.setVisibility(View.VISIBLE);
+        iv_progress.startAnimation(animation);
     }
 
     @Override
     public void changeStatus(int state) {
         if (this.currentStatus != state) {
+            switch (state) {
+                case XRefreshLayout.States.IDLE:
+                    reset();
+                    break;
+                case XRefreshLayout.States.OVER_REFRESH_OFFSET:
+                    changeReleaseToRefresh();
+                    break;
+                case XRefreshLayout.States.REFRESH:
+                    changeToRefresh();
+                    break;
+                case XRefreshLayout.States.SCROLL_TO_INIT:
+                    changeToIdle();
+                    break;
+                default:
+
+                    break;
+            }
             this.currentStatus = state;
         }
     }

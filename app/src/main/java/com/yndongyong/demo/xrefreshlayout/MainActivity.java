@@ -75,6 +75,6 @@ public class MainActivity extends AppCompatActivity implements XRefreshLayout.Re
             public void run() {
                 refresh_layout.refreshComplete();
             }
-        },2000);
+        },3000);
     }
 }

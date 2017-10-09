@@ -31,16 +31,6 @@ interface XHeaderView {
     void onPull(int targetCurrentOffset ,int targetInitOffset,int targetRefreshOffset);
 
     /**
-     *  刷新
-     */
-    void changeToRefresh();
-
-    /**
-     * 空闲 /初始
-     */
-    void changeToIdle();
-
-    /**
      * 通知当前的状态
      * @param state
      */

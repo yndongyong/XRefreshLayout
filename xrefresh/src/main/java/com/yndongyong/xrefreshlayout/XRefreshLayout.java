@@ -88,6 +88,8 @@ public class XRefreshLayout extends ViewGroup {
 
     protected int mHeaderViewHeight;
 
+    private boolean isRefreshing = false; //是否正在刷新
+
     //复位动画
     private Animation mRestAnimation;
 
@@ -179,7 +181,7 @@ public class XRefreshLayout extends ViewGroup {
             int targetMeasureHeightSpec = MeasureSpec.makeMeasureSpec(
                     getMeasuredHeight() - getPaddingTop() - getPaddingBottom(), MeasureSpec.EXACTLY);
             mTargetView.measure(targetMeasureWidthSpec, targetMeasureHeightSpec);
-            mTargetInitOffset = 0;
+            mTargetInitOffset = getPaddingTop();
             mTargetCurrentOffset = mTargetInitOffset;
             mTargetRefreshOffset = mHeaderViewHeight;
 
@@ -204,8 +206,6 @@ public class XRefreshLayout extends ViewGroup {
         final int childHeight = height - getPaddingTop() - getPaddingBottom();
         mTargetView.layout(childLeft, (childTop + mTargetCurrentOffset),
                 childLeft + childWidth, (childTop + childHeight + mTargetCurrentOffset));
-
-
     }
 
 
@@ -213,6 +213,7 @@ public class XRefreshLayout extends ViewGroup {
         if (view == null) {
             return false;
         }
+        // TODO: 2017/10/9 可以设置一个回调交由子view控制是否可以刷新
         if (android.os.Build.VERSION.SDK_INT < 14) {
             if (view instanceof AbsListView) {
                 final AbsListView absListView = (AbsListView) view;
@@ -231,7 +232,7 @@ public class XRefreshLayout extends ViewGroup {
     public boolean onInterceptTouchEvent(MotionEvent ev) {
         int actionMasked = MotionEventCompat.getActionMasked(ev);
 
-        if (canScrollUp(mTargetView)) {
+        if (canScrollUp(mTargetView) || isRefreshing) {
             return false;
         }
         switch (actionMasked) {
@@ -253,6 +254,10 @@ public class XRefreshLayout extends ViewGroup {
     public boolean onTouchEvent(MotionEvent event) {
         int actionMasked = MotionEventCompat.getActionMasked(event);
         Log.d(TAG, "onTouchEvent  mSipperCurrentOffset： " + mSipperCurrentOffset);
+
+        if (canScrollUp(mTargetView) || isRefreshing) {
+            return false;
+        }
         switch (actionMasked) {
             case MotionEvent.ACTION_DOWN:
                 mIsDraging = false;
@@ -282,11 +287,11 @@ public class XRefreshLayout extends ViewGroup {
                                 offsetLoc = delta;
                             }
                             event.offsetLocation(0, offsetLoc);
-                            dispatchTouchEvent(event);
+                            super.dispatchTouchEvent(event);
                             event.setAction(actionMasked);
                             // 再dispatch一次move事件，消耗掉所有dy
                             event.offsetLocation(0, -offsetLoc);
-                            dispatchTouchEvent(event);
+                            super.dispatchTouchEvent(event);
                         }
                     }
                     mLastMotionY = y;
@@ -309,9 +314,11 @@ public class XRefreshLayout extends ViewGroup {
         return true;
     }
 
+    //<editor-fold desc="结束滑动 finishSipper 调用刷新回调">
     private void finishSipper(float x1, float y1) {
-        if (mTargetCurrentOffset > mTargetRefreshOffset) {
+        if (mTargetCurrentOffset >= mTargetRefreshOffset && !isRefreshing) {
             //刷新点
+            isRefreshing = true;
             final int startValue = mTargetCurrentOffset;
             ValueAnimator valueAnimator = ValueAnimator.ofInt(startValue, mTargetRefreshOffset);
             valueAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
@@ -332,7 +339,7 @@ public class XRefreshLayout extends ViewGroup {
                 @Override
                 public void onAnimationEnd(Animator animation) {
                     super.onAnimationEnd(animation);
-                    mHeaderView.changeToRefresh();
+                    mHeaderView.changeStatus(States.REFRESH);
                     if (refreshListener != null) {
                         refreshListener.onRefresh();
                     }
@@ -342,13 +349,17 @@ public class XRefreshLayout extends ViewGroup {
             valueAnimator.start();
         } else {
             //没有到刷新点
-            moveToInitPosition();
+                if (!isRefreshing) {
+                    moveToInitPosition();
+            }
+
         }
     }
+    //</editor-fold>
 
-
+    //<editor-fold desc="滑动到初始位置 moveToInitPosition">
     private void moveToInitPosition() {
-        mHeaderView.changeToIdle();
+        mHeaderView.changeStatus(States.SCROLL_TO_INIT);
         final int startValue = mTargetCurrentOffset;
         ValueAnimator valueAnimator = ValueAnimator.ofInt(startValue, mTargetInitOffset);
         valueAnimator.setInterpolator(accelerateInterpolator);
@@ -364,7 +375,6 @@ public class XRefreshLayout extends ViewGroup {
 
             }
         });
-
         ValueAnimator valueAnimator1 = ValueAnimator.ofInt(mSipperCurrentOffset, mSipperInitTop);
         valueAnimator1.setInterpolator(accelerateInterpolator);
         valueAnimator1.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
@@ -384,7 +394,9 @@ public class XRefreshLayout extends ViewGroup {
         animatorSet.setDuration(mMediumAnimationDuration);
         animatorSet.start();
     }
+    //</editor-fold>
 
+    //<editor-fold desc="移动view moveChildView">
     private int moveChildView(int overscrollTop) {
         int targetY = (overscrollTop + mTargetCurrentOffset);
 //        targetY = Math.min(targetY, mTargetRefreshOffset);
@@ -399,9 +411,20 @@ public class XRefreshLayout extends ViewGroup {
         ViewCompat.offsetTopAndBottom(mHeaderView.getView(), offset);
         mSipperCurrentOffset = mHeaderView.getView().getTop();
         mHeaderView.onPull(mTargetCurrentOffset, mTargetInitOffset, mTargetRefreshOffset);
+        if (mTargetCurrentOffset >= mTargetRefreshOffset) {
+            mHeaderView.changeStatus(States.OVER_REFRESH_OFFSET);
+        }
 
         return offset;
     }
+    //</editor-fold >
+
+    //<editor-fold desc="结束刷新 refreshComplete">
+    public void refreshComplete() {
+        isRefreshing = false;
+        moveToInitPosition();
+    }
+    //</editor-fold >
 
     /**
      * 计算sipper 的新位置
@@ -449,9 +472,6 @@ public class XRefreshLayout extends ViewGroup {
         return new LayoutParams(getContext(), attrs);
     }
 
-    public void refreshComplete() {
-        moveToInitPosition();
-    }
 
     public static class LayoutParams extends MarginLayoutParams {
 
@@ -480,9 +500,9 @@ public class XRefreshLayout extends ViewGroup {
     interface States {
 
         int IDLE = 0;//当前是空闲
-        int PULL = 1;//下拉过程中
-        int REFRESH = 2;//刷新中
-        int VOER_SCROLL = 3;//回滚到初始状态
+        int OVER_REFRESH_OFFSET = 1;//达到刷新点的状态
+        int REFRESH = 2;//刷新状态
+        int SCROLL_TO_INIT = 3;//从小于或者等于触发刷新的位置 回滚到初始位置 的状态
 
     }
 }
