@@ -1,7 +1,5 @@
 package com.yndongyong.xrefreshlayout;
 
-import android.animation.Animator;
-import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -17,7 +15,7 @@ import android.widget.ImageView;
 
 public class BasicNormalHeaderView implements XHeaderView {
 
-    int currentStatus = XRefreshLayout.States.IDLE;
+    int currentStatus = Status.IDLE;
 
     private ViewGroup parent;
     private View rootView;
@@ -43,14 +41,14 @@ public class BasicNormalHeaderView implements XHeaderView {
     }
 
     /**
-     * 下拉过程中触发
      *
-     * @param targetCurrentOffset target当前的位置，
-     * @param targetInitOffset    target的初始位置
-     * @param targetRefreshOffset target 触发刷新的位置
+     * @param offset  sipper 偏移量
+     * @param sipperCurrentOffset  sipper 当前的位置
+     * @param sipperInitOffset  sipper 初始位置
+     * @param sipperRefreshOffset  sipper 触发刷新的位置
      */
     @Override
-    public void onPull(int targetCurrentOffset, int targetInitOffset, int targetRefreshOffset) {
+    public void onPull(int offset, int sipperCurrentOffset, int sipperInitOffset, int sipperRefreshOffset) {
 
     }
 
@@ -74,13 +72,13 @@ public class BasicNormalHeaderView implements XHeaderView {
         iv_arrow.setVisibility(View.VISIBLE);
         iv_arrow.setRotation(0f);
         iv_progress.setVisibility(View.INVISIBLE);
-        currentStatus = XRefreshLayout.States.IDLE;
+        currentStatus = Status.IDLE;
     }
 
     /**
      * 要保证动画时间和headerview隐藏的时间一致 采用系统的 mediumAnimTime
      */
-    private void changeToIdle() {
+    private void changeToInit() {
         final ValueAnimator anim1 = ValueAnimator.ofFloat(180f, 0f).setDuration(rootView.getResources().getInteger(
                 android.R.integer.config_mediumAnimTime));
         anim1.start();
@@ -109,17 +107,17 @@ public class BasicNormalHeaderView implements XHeaderView {
     public void changeStatus(int state) {
         if (this.currentStatus != state) {
             switch (state) {
-                case XRefreshLayout.States.IDLE:
+                case Status.IDLE:
                     reset();
                     break;
-                case XRefreshLayout.States.OVER_REFRESH_OFFSET:
+                case Status.OVER_REFRESH_OFFSET:
                     changeReleaseToRefresh();
                     break;
-                case XRefreshLayout.States.REFRESH:
+                case Status.REFRESH:
                     changeToRefresh();
                     break;
-                case XRefreshLayout.States.SCROLL_TO_INIT:
-                    changeToIdle();
+                case Status.SCROLL_TO_INIT:
+                    changeToInit();
                     break;
                 default:
 

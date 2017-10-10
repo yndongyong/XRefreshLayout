@@ -84,7 +84,7 @@ public class XRefreshLayout extends ViewGroup {
     private int mActivePointerId = INVALID_POINTER;
 
     //当前的状态
-    protected int mStatus = States.IDLE;
+    protected int mStatus = Status.IDLE;
 
     protected XHeaderView mHeaderView;
     protected View mTargetView;
@@ -92,7 +92,7 @@ public class XRefreshLayout extends ViewGroup {
 
     protected int mHeaderViewHeight;
 
-    private boolean isRefreshing = false; //是否正在刷新
+    private volatile boolean isRefreshing = false; //是否正在刷新
     private boolean isAutoRefresh = false; //是否自动刷新
 
     //复位动画
@@ -102,16 +102,21 @@ public class XRefreshLayout extends ViewGroup {
 
     private RefreshListener refreshListener;
 
+    private SipperTargetOffsetCalculator mSipperTargetOffsetCalculator;
+
     //滚动刷新位置结束时调用
     private AnimatorListenerAdapter refreshAnimationListener = new AnimatorListenerAdapter() {
         @Override
         public void onAnimationEnd(Animator animation) {
             super.onAnimationEnd(animation);
-            mHeaderView.changeStatus(States.REFRESH);
-            if (refreshListener != null) {
-                refreshListener.onRefresh();
+            // TODO: 2017/10/10  过滤在刷新过程中又再次下拉了 过滤得不完全
+            if (!isRefreshing) {
+                isRefreshing = true;
+                mHeaderView.changeStatus(Status.REFRESH);
+                if (refreshListener != null) {
+                    refreshListener.onRefresh();
+                }
             }
-
         }
     };
 
@@ -149,7 +154,8 @@ public class XRefreshLayout extends ViewGroup {
         public void onAnimationEnd(Animator animation) {
             super.onAnimationEnd(animation);
             // TODO: 2017/10/9  回到初始位置结束
-            mHeaderView.changeStatus(States.IDLE);
+            reset();
+            mHeaderView.changeStatus(Status.IDLE);
         }
     };
 
@@ -174,6 +180,7 @@ public class XRefreshLayout extends ViewGroup {
         createHeader();
         setWillNotDraw(false);
         accelerateInterpolator = new AccelerateInterpolator(3.0f);
+
     }
 
     private void createHeader() {
@@ -227,7 +234,8 @@ public class XRefreshLayout extends ViewGroup {
             }
             mSipperInitTop = -headV.getMeasuredHeight();
             mSipperCurrentOffset = mSipperInitTop;
-            mSipperEndOffset = headV.getMeasuredHeight();
+            // TODO: 2017/10/10 sipper 的刷新位置初始位设为 0  需要提供设置方法，且要考虑和mTargetRefreshOffset 的限制
+            mSipperEndOffset = 0;
             mHeaderViewHeight = headV.getMeasuredHeight();
         }
         if (mTargetView != null) {
@@ -236,16 +244,14 @@ public class XRefreshLayout extends ViewGroup {
             int targetMeasureHeightSpec = MeasureSpec.makeMeasureSpec(
                     getMeasuredHeight() - getPaddingTop() - getPaddingBottom(), MeasureSpec.EXACTLY);
             mTargetView.measure(targetMeasureWidthSpec, targetMeasureHeightSpec);
-            mTargetInitOffset = getPaddingTop();
             //多次测量的时候 改变这个值 和移动改变这个值，会造成冲突，导致界面会闪
             if (mTargetCurrentOffset == 0) {
+                mTargetInitOffset = getPaddingTop();
                 mTargetCurrentOffset = mSipperCurrentOffset + mHeaderViewHeight;
             }
             mTargetRefreshOffset = mHeaderViewHeight;
 
         }
-
-
     }
 
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
@@ -335,15 +341,15 @@ public class XRefreshLayout extends ViewGroup {
 
                 if (mIsDraging) {
                     mDragDistances = (int) (y - mLastMotionY);
-                    final int overscrollTop = (int) ((mDragDistances) * DRAG_RATE);
-                    Log.d(TAG, "onTouchEvent  overscrollTop： " + overscrollTop);
+                    final int dy = (int) ((mDragDistances) * DRAG_RATE);
+                    Log.d(TAG, "onTouchEvent  dy： " + dy);
 
-                    if (overscrollTop > 0) {
-                        moveChildView(overscrollTop);
+                    if (dy > 0) {
+                        moveChildView(dy);
                     } else {
                         //TODO 还需要处理 sipper被完全隐藏之后，target向上滚动
-                        int offset = moveChildView(overscrollTop);
-                        float delta = Math.abs(overscrollTop) - Math.abs(offset);
+                        int offset = moveChildView(dy);
+                        float delta = Math.abs(dy) - Math.abs(offset);
                         if (delta > 0) {
                             // 重新dispatch一次down事件，使得列表可以继续滚动
                             event.setAction(MotionEvent.ACTION_DOWN);
@@ -358,6 +364,8 @@ public class XRefreshLayout extends ViewGroup {
                             // 再dispatch一次move事件，消耗掉所有dy
                             event.offsetLocation(0, -offsetLoc);
                             super.dispatchTouchEvent(event);
+                        } else {
+                            moveToInitPosition();
                         }
                     }
                     mLastMotionY = y;
@@ -388,18 +396,25 @@ public class XRefreshLayout extends ViewGroup {
     }
 
     //</editor-fold>
+
     //<editor-fold desc="结束滑动 finishSipper 调用刷新回调">
     private void finishSipper(float x1, float y1) {
-        if (mTargetCurrentOffset >= mTargetRefreshOffset && !isRefreshing) {
+        if (mTargetCurrentOffset >= mTargetRefreshOffset ) {
             //刷新点
-            isRefreshing = true;
             final int startValue = mTargetCurrentOffset;
-            ValueAnimator valueAnimator = ValueAnimator.ofInt(startValue, mTargetRefreshOffset);
-            valueAnimator.addUpdateListener(targetOffsetUpdateAnimationListener);
-            valueAnimator.setDuration(mMediumAnimationDuration);
-            valueAnimator.setInterpolator(accelerateInterpolator);
-            valueAnimator.addListener(refreshAnimationListener);
-            valueAnimator.start();
+            ValueAnimator targetAnimator = ValueAnimator.ofInt(startValue, mTargetRefreshOffset);
+            targetAnimator.addUpdateListener(targetOffsetUpdateAnimationListener);
+
+            ValueAnimator sipperAnimator = ValueAnimator.ofInt(mSipperCurrentOffset, mSipperEndOffset);
+            sipperAnimator.addUpdateListener(sipperOffsetUpdateAnimationListener);
+
+            AnimatorSet animatorSet = new AnimatorSet();
+            animatorSet.playTogether(targetAnimator, sipperAnimator);
+            animatorSet.setDuration(mMediumAnimationDuration);
+            animatorSet.setInterpolator(accelerateInterpolator);
+//            if (!isRefreshing)
+                animatorSet.addListener(refreshAnimationListener);
+            animatorSet.start();
         } else {
             //没有到刷新点
             if (!isRefreshing) {
@@ -418,7 +433,7 @@ public class XRefreshLayout extends ViewGroup {
     private void moveToInitPosition() {
         Log.e(TAG, "moveToInitPosition  mTargetCurrentOffset： " + mTargetCurrentOffset);
 
-        mHeaderView.changeStatus(States.SCROLL_TO_INIT);
+        mHeaderView.changeStatus(Status.SCROLL_TO_INIT);
 
         int startValue = mTargetCurrentOffset;
         ValueAnimator targetAnimator = ValueAnimator.ofInt(startValue, mTargetInitOffset);
@@ -438,39 +453,49 @@ public class XRefreshLayout extends ViewGroup {
     //</editor-fold>
 
     //<editor-fold desc="移动view moveChildView">
-    private int moveChildView(int overscrollTop) {
-        int targetY = (overscrollTop + mTargetCurrentOffset);
+    private int moveChildView(int dy) {
+        int targetY = (dy + mTargetCurrentOffset);
 //        targetY = Math.min(targetY, mTargetRefreshOffset);
         if (targetY != mTargetCurrentOffset) {
             int offset = targetY - mTargetCurrentOffset;
             ViewCompat.offsetTopAndBottom(mTargetView, offset);
             mTargetCurrentOffset = targetY;
         }
-
-        int target = caculateSipperNewoffset1(overscrollTop);
-        int offset = target - mSipperCurrentOffset;
-        ViewCompat.offsetTopAndBottom(mHeaderView.getView(), offset);
-        mSipperCurrentOffset = mHeaderView.getView().getTop();
-        mHeaderView.onPull(mTargetCurrentOffset, mTargetInitOffset, mTargetRefreshOffset);
-        if (mTargetCurrentOffset >= mTargetRefreshOffset) {
-            mHeaderView.changeStatus(States.OVER_REFRESH_OFFSET);
-        } else if (mTargetCurrentOffset <= mTargetInitOffset) {
-            mHeaderView.changeStatus(States.IDLE);
+        if (mSipperTargetOffsetCalculator == null) {
+            mSipperTargetOffsetCalculator = new DefaultTargetOffsetCalculator();
         }
+        int target = mSipperTargetOffsetCalculator.calculateOffset(dy,
+                mSipperCurrentOffset, mSipperInitTop, mSipperEndOffset, mHeaderViewHeight,
+                mTargetCurrentOffset, mTargetInitOffset, mTargetRefreshOffset);
+        int offset = 0;
+        if (target != mSipperCurrentOffset) {
+            offset = target - mSipperCurrentOffset;
+            ViewCompat.offsetTopAndBottom(mHeaderView.getView(), offset);
+            mSipperCurrentOffset = target;
+
+            mHeaderView.onPull(offset, mSipperCurrentOffset, mSipperInitTop, mSipperEndOffset);
+            if (mTargetCurrentOffset >= mTargetRefreshOffset && !isRefreshing) {
+                mHeaderView.changeStatus(Status.OVER_REFRESH_OFFSET);
+                // TODO: 2017/10/10 可能下面这个分支  的第二个条件有问题
+            } else if (mTargetCurrentOffset <= mTargetInitOffset && !isRefreshing) {
+                mHeaderView.changeStatus(Status.IDLE);
+            }
+        }
+
         return offset;
     }
     //</editor-fold >
 
     //<editor-fold desc="结束刷新 refreshComplete">
     public void refreshComplete() {
-        isRefreshing = false;
+//        isRefreshing = false; 动画都没有执行完就设置这个值，在重复下拉刷新会有影响
         moveToInitPosition();
     }
     //</editor-fold >
 
     //<editor-fold desc="自动刷新 autoRefresh">
     public void autoRefresh() {
-        if (mStatus != States.IDLE || !mEnableAutoRefresh) {
+        if (mStatus != Status.IDLE && mEnableAutoRefresh) {
             return;
         }
         isAutoRefresh = true;
@@ -562,21 +587,15 @@ public class XRefreshLayout extends ViewGroup {
         void onRefresh();
     }
 
-    interface States {
-
-        int IDLE = 0;//当前是空闲
-        int OVER_REFRESH_OFFSET = 1;//达到刷新点的状态
-        int REFRESH = 2;//刷新状态
-        int SCROLL_TO_INIT = 3;//从小于或者等于触发刷新的位置 回滚到初始位置 的状态
-
-    }
-
-
     //<editor-fold desc="getter and setter">
     public void setEnableAutoRefresh(boolean enableAutoRefresh) {
         this.mEnableAutoRefresh = enableAutoRefresh;
     }
 
+
+    public void setSipperTargetOffsetCalculator(SipperTargetOffsetCalculator sipperTargetOffsetCalculator) {
+        this.mSipperTargetOffsetCalculator = sipperTargetOffsetCalculator;
+    }
 
     //</editor-fold>
 }

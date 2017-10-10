@@ -23,12 +23,13 @@ interface XHeaderView {
 //    void onPull(int offset ,int total,int overPull);
 
     /**
-     *  下拉过程中触发
-     * @param targetCurrentOffset target当前的位置，
-     * @param targetInitOffset target的初始位置
-     * @param targetRefreshOffset  target 触发刷新的位置
+     * 下拉过程中触发
+     * @param offset  sipper 偏移量
+     * @param sipperCurrentOffset  sipper 当前的位置
+     * @param sipperInitOffset  sipper 初始位置
+     * @param sipperRefreshOffset  sipper 触发刷新的位置
      */
-    void onPull(int targetCurrentOffset ,int targetInitOffset,int targetRefreshOffset);
+    void onPull(int offset ,int sipperCurrentOffset ,int sipperInitOffset,int sipperRefreshOffset);
 
     /**
      * 通知当前的状态

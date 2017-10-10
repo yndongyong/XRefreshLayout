@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:insetBottom="16dp"
+    android:insetLeft="26dp"
+    android:insetRight="26dp"
+    android:insetTop="16dp"
+    >
+
+    <layer-list>
+        <item>
+            <!-- 透明区域-->
+            <color android:color="#00E4007F" />
+        </item>
+
+        <item android:top="50dp">
+            <shape android:shape="rectangle">
+                <corners android:radius="10dp" />
+                <solid android:color="#d19a70" />
+            </shape>
+        </item>
+    </layer-list>
+</inset>

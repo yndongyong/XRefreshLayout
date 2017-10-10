@@ -7,6 +7,9 @@ import android.widget.Toast;
 
 import com.yndongyong.widget.multiitem.Items;
 import com.yndongyong.widget.multiitem.SimpleAdapter;
+import com.yndongyong.xrefreshlayout.BottomGravityTargetOffsetCalculator;
+import com.yndongyong.xrefreshlayout.CenterGravityTargetOffsetCalculator;
+import com.yndongyong.xrefreshlayout.DefaultTargetOffsetCalculator;
 import com.yndongyong.xrefreshlayout.XRefreshLayout;
 
 
@@ -35,6 +38,9 @@ public class MainActivity extends AppCompatActivity implements XRefreshLayout.Re
         refresh_layout = (XRefreshLayout) findViewById(R.id.refresh_layout);
         refresh_layout.setRefreshListener(this);
 
+//        refresh_layout.setSipperTargetOffsetCalculator(new DefaultTargetOffsetCalculator());
+//        refresh_layout.setSipperTargetOffsetCalculator(new CenterGravityTargetOffsetCalculator());
+        refresh_layout.setSipperTargetOffsetCalculator(new BottomGravityTargetOffsetCalculator());
         refresh_layout.setEnableAutoRefresh(true);
         refresh_layout.autoRefresh();
     }
@@ -73,15 +79,19 @@ public class MainActivity extends AppCompatActivity implements XRefreshLayout.Re
         items.add(new CategoryEntry("http://scimg.jb51.net/allimg/150819/14-150QZ9194K27.jpg", "风景图片6"));
     }
 
+
+    private long millis ;
     @Override
     public void onRefresh() {
-//        Toast.makeText(this, "开始刷新。。。", Toast.LENGTH_SHORT).show();
+        millis = System.currentTimeMillis();
+        Toast.makeText(this, "开始刷新。。。", Toast.LENGTH_SHORT).show();
         refresh_layout.postDelayed(new Runnable() {
             @Override
             public void run() {
                 fakeData();
                 simpleAdapter.addNewDataWithNotify(items);
                 refresh_layout.refreshComplete();
+                Toast.makeText(MainActivity.this, (System.currentTimeMillis()-millis)/1000+"s  刷新结束", Toast.LENGTH_SHORT).show();
             }
         },3000);
     }
