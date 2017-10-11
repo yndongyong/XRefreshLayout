@@ -40,9 +40,9 @@ public class MainActivity extends AppCompatActivity implements XRefreshLayout.Re
 
 //        refresh_layout.setSipperTargetOffsetCalculator(new DefaultTargetOffsetCalculator());
 //        refresh_layout.setSipperTargetOffsetCalculator(new CenterGravityTargetOffsetCalculator());
-        refresh_layout.setSipperTargetOffsetCalculator(new BottomGravityTargetOffsetCalculator());
-        refresh_layout.setEnableAutoRefresh(true);
-        refresh_layout.autoRefresh();
+//        refresh_layout.setSipperTargetOffsetCalculator(new BottomGravityTargetOffsetCalculator());
+//        refresh_layout.setEnableAutoRefresh(true);
+//        refresh_layout.autoRefresh();
     }
 
     private void fakeData() {

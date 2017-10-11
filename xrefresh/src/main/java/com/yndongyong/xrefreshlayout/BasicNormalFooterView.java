@@ -10,13 +10,11 @@ import android.view.animation.LinearInterpolator;
 import android.view.animation.RotateAnimation;
 import android.widget.ImageView;
 
-import static com.android.internal.app.IntentForwarderActivity.TAG;
-
 /**
  * Created by ad15 on 2017/9/4.
  */
 
-public class BasicNormalHeaderView implements XHeaderView {
+public class BasicNormalFooterView implements XFooterView {
 
     int currentStatus = Status.IDLE;
 
@@ -26,13 +24,13 @@ public class BasicNormalHeaderView implements XHeaderView {
     private ImageView iv_arrow;
     private ImageView iv_progress;
 
-    public BasicNormalHeaderView(ViewGroup _parent) {
+    public BasicNormalFooterView(ViewGroup _parent) {
         this.parent = _parent;
         initView();
     }
 
     private void initView() {
-        rootView = LayoutInflater.from(parent.getContext()).inflate(R.layout.basic_normal_header_view_layout, parent, false);
+        rootView = LayoutInflater.from(parent.getContext()).inflate(R.layout.basic_normal_footer_view_layout, parent, false);
         iv_arrow = (ImageView) rootView.findViewById(R.id.iv_arrow);
         iv_progress = (ImageView) rootView.findViewById(R.id.iv_progress);
     }
@@ -44,11 +42,10 @@ public class BasicNormalHeaderView implements XHeaderView {
     }
 
     /**
-     *
-     * @param offset  sipper 偏移量
-     * @param sipperCurrentOffset  sipper 当前的位置
-     * @param sipperInitOffset  sipper 初始位置
-     * @param sipperRefreshOffset  sipper 触发刷新的位置
+     * @param offset              sipper 偏移量
+     * @param sipperCurrentOffset sipper 当前的位置
+     * @param sipperInitOffset    sipper 初始位置
+     * @param sipperRefreshOffset sipper 触发刷新的位置
      */
     @Override
     public void onPull(int offset, int sipperCurrentOffset, int sipperInitOffset, int sipperRefreshOffset) {
@@ -113,8 +110,8 @@ public class BasicNormalHeaderView implements XHeaderView {
 
     @Override
     public void changeStatus(int state) {
-        Log.e("BasicNormalHeaderView", "changeStatus: "+state);
-        if (this.currentStatus != state) {
+        Log.e("BasicNormalHeaderView", "changeStatus: " + state);
+        /*if (this.currentStatus != state) {
             switch (state) {
                 case Status.IDLE:
                     reset();
@@ -133,6 +130,6 @@ public class BasicNormalHeaderView implements XHeaderView {
                     break;
             }
             this.currentStatus = state;
-        }
+        }*/
     }
 }

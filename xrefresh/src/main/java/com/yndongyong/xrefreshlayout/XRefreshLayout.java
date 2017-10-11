@@ -80,15 +80,18 @@ public class XRefreshLayout extends ViewGroup {
     private int mTouchSlop;
     //系统动画时间
     private int mMediumAnimationDuration;
+    private int mShortAnimationDuration;
     //触控点ID
     private int mActivePointerId = INVALID_POINTER;
+
+
 
     //当前的状态
     protected int mStatus = Status.IDLE;
 
     protected XHeaderView mHeaderView;
     protected View mTargetView;
-    protected View mFooterView;
+    protected XFooterView mFooterView;
 
     protected int mHeaderViewHeight;
 
@@ -177,9 +180,20 @@ public class XRefreshLayout extends ViewGroup {
         mTouchSlop = ViewConfiguration.get(getContext()).getScaledTouchSlop();
         mMediumAnimationDuration = getResources().getInteger(
                 android.R.integer.config_mediumAnimTime);
+        mShortAnimationDuration = getResources().getInteger(
+                android.R.integer.config_shortAnimTime);
+        mShortAnimationDuration = 300;
         createHeader();
+//        createFooter();
         setWillNotDraw(false);
         accelerateInterpolator = new AccelerateInterpolator(3.0f);
+
+    }
+
+    private void createFooter() {
+        mFooterView = new BasicNormalFooterView(this);
+        ViewGroup.LayoutParams layoutParams = mFooterView.getView().getLayoutParams();
+        addView(mFooterView.getView(),getChildCount(), layoutParams != null ? layoutParams : new ViewGroup.LayoutParams(MATCH_PARENT, WRAP_CONTENT));
 
     }
 
@@ -193,17 +207,19 @@ public class XRefreshLayout extends ViewGroup {
     protected void onFinishInflate() {
         super.onFinishInflate();
         ensureTarget();
+        bringChildToFront(mTargetView);
     }
 
     private void ensureTarget() {
         if (mTargetView == null) {
             int childCount = getChildCount();
+            // TODO: 2017/10/11  更改
             if (childCount != 2) {
                 throw new IllegalArgumentException("The xrefreshlayout must be has two child view");
             }
             for (int i = 0, j = getChildCount(); i < j; i++) {
                 View view = getChildAt(i);
-                if (!mHeaderView.getView().equals(view)) {
+                if (!mHeaderView.getView().equals(view) ) {
                     mTargetView = view;
                     break;
                 }
@@ -238,6 +254,8 @@ public class XRefreshLayout extends ViewGroup {
             mSipperEndOffset = 0;
             mHeaderViewHeight = headV.getMeasuredHeight();
         }
+
+
         if (mTargetView != null) {
             int targetMeasureWidthSpec = MeasureSpec.makeMeasureSpec(
                     getMeasuredWidth() - getPaddingLeft() - getPaddingRight(), MeasureSpec.EXACTLY);
@@ -252,6 +270,25 @@ public class XRefreshLayout extends ViewGroup {
             mTargetRefreshOffset = mHeaderViewHeight;
 
         }
+        if (mFooterView != null) {
+            View footerV = mFooterView.getView();
+            measureChild(footerV, widthMeasureSpec, heightMeasureSpec);
+            LayoutParams lp = (LayoutParams) footerV.getLayoutParams();
+            int height = lp.height;
+            int width = lp.width;
+
+            int widthM = getChildMeasureSpec(widthMeasureSpec, 0, lp.width);
+            if (height == WRAP_CONTENT) {
+                int heightM = MeasureSpec.makeMeasureSpec(MeasureSpec.getSize(heightMeasureSpec), MeasureSpec.AT_MOST);
+                footerV.measure(widthM, heightM);
+            } else {
+                int heightM = MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY);
+                footerV.measure(widthM, heightM);
+            }
+        }
+
+        setMeasuredDimension(resolveSize(getSuggestedMinimumWidth(), widthMeasureSpec), resolveSize(mTargetView.getMeasuredHeight(), heightMeasureSpec));
+
     }
 
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
@@ -270,6 +307,8 @@ public class XRefreshLayout extends ViewGroup {
         final int childHeight = height - getPaddingTop() - getPaddingBottom();
         mTargetView.layout(childLeft, (childTop + mTargetCurrentOffset),
                 childLeft + childWidth, (childTop + childHeight + mTargetCurrentOffset));
+
+//        footerV.layout
     }
 
 
@@ -303,21 +342,43 @@ public class XRefreshLayout extends ViewGroup {
         if (isRefreshing && mEnableScrollContentWhenRefresh) {
             return true;
         }
+        int pointerIndex = -1;
         switch (actionMasked) {
             case MotionEvent.ACTION_DOWN:
-                mInitialDownY = ev.getY();
-                mInitialDownX = ev.getX();
+                mActivePointerId = ev.getPointerId(0);
+                pointerIndex = ev.findPointerIndex(mActivePointerId);
+                if (pointerIndex < 0) {
+                    return false;
+                }
+                mInitialDownY = ev.getY(pointerIndex);
+                mInitialDownX = ev.getX(pointerIndex);
                 mLastMotionY = mInitialDownY;
                 mLastMotionX = mInitialDownY;
                 mIsDraging = false;
+
                 break;
             case MotionEvent.ACTION_MOVE:
-                float y = ev.getY();
-                float x = ev.getX();
+                /*if (mActivePointerId == INVALID_POINTER) {
+                    Log.e(TAG, "invalid pointer id.");
+                    return false;
+                }*/
+
+                pointerIndex = ev.findPointerIndex(mActivePointerId);
+                if (pointerIndex < 0) {
+                    return false;
+                }
+                float y = ev.getY(pointerIndex);
+                float x = ev.getX(pointerIndex);
                 startDragging(x, y);
                 break;
-            default:
-                return super.onInterceptTouchEvent(ev);
+            case MotionEventCompat.ACTION_POINTER_UP:
+                onSecondaryPointerUp(ev);
+                break;
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+                mActivePointerId = INVALID_POINTER;
+                mIsDraging = false;
+                break;
         }
         return mIsDraging;
     }
@@ -325,6 +386,7 @@ public class XRefreshLayout extends ViewGroup {
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         int actionMasked = MotionEventCompat.getActionMasked(event);
+        int pointerIndex = -1;
         Log.d(TAG, "onTouchEvent  mSipperCurrentOffset： " + mSipperCurrentOffset);
 
         if (canScrollUp(mTargetView) || (isRefreshing && mEnableScrollContentWhenRefresh)) {
@@ -332,11 +394,20 @@ public class XRefreshLayout extends ViewGroup {
         }
         switch (actionMasked) {
             case MotionEvent.ACTION_DOWN:
+//                ViewCompat.offsetTopAndBottom(mHeaderView.getView(), mSipperInitTop - mHeaderViewHeight);
+//                mSipperCurrentOffset = mHeaderView.getView().getTop();
+                mActivePointerId = event.getPointerId(0);
                 mIsDraging = false;
                 break;
             case MotionEvent.ACTION_MOVE:
-                final float y = event.getY();
-                final float x = event.getX();
+                pointerIndex = event.findPointerIndex(mActivePointerId);
+                if (pointerIndex < 0) {
+                    //
+                    Log.e(TAG, "onTouchEvent: invalid active pointer id" );
+                    return false;
+                }
+                float y = event.getY(pointerIndex);
+                float x = event.getX(pointerIndex);
                 startDragging(x, y);
 
                 if (mIsDraging) {
@@ -365,7 +436,7 @@ public class XRefreshLayout extends ViewGroup {
                             event.offsetLocation(0, -offsetLoc);
                             super.dispatchTouchEvent(event);
                         } else {
-                            moveToInitPosition();
+//                            moveToInitPosition();
                         }
                     }
                     mLastMotionY = y;
@@ -373,20 +444,52 @@ public class XRefreshLayout extends ViewGroup {
                 }
 
                 break;
+            case MotionEvent.ACTION_POINTER_DOWN:
+                pointerIndex = MotionEventCompat.getActionIndex(event);
+                if (pointerIndex < 0) {
+                    Log.e(TAG, "invalid active pointer index" );
+                    return false;
+                }
+                mActivePointerId = event.getPointerId(pointerIndex);
+                break;
+
+            case MotionEvent.ACTION_POINTER_UP:
+                onSecondaryPointerUp(event);
+                break;
+
             case MotionEvent.ACTION_UP:
-            case MotionEvent.ACTION_CANCEL:
+                pointerIndex = event.findPointerIndex(mActivePointerId);
+                if (pointerIndex < 0) {
+                    Log.e(TAG, "invalid active pointer id.");
+                    return false;
+                }
                 if (mIsDraging) {
                     mIsDraging = false;
-                    final float y1 = event.getY();
-                    final float x1 = event.getX();
+                    final float y1 = event.getY(pointerIndex);
+                    final float x1 = event.getX(pointerIndex);
                     finishSipper(x1, y1);
                 }
+                mActivePointerId = INVALID_POINTER;
+                return false;
+            case MotionEvent.ACTION_CANCEL:
+                mActivePointerId = INVALID_POINTER;
+                mIsDraging = false;
                 return false;
 //                break;
-
         }
 
         return true;
+    }
+
+    private void onSecondaryPointerUp(MotionEvent ev) {
+        final int pointerIndex = MotionEventCompat.getActionIndex(ev);
+        final int pointerId = ev.getPointerId(pointerIndex);
+        if (pointerId == mActivePointerId) {
+            // This was our active pointer going up. Choose a new
+            // active pointer and adjust accordingly.
+            final int newPointerIndex = pointerIndex == 0 ? 1 : 0;
+            mActivePointerId = ev.getPointerId(newPointerIndex);
+        }
     }
 
     //<editor-fold desc="重置 reset ">
@@ -399,7 +502,7 @@ public class XRefreshLayout extends ViewGroup {
 
     //<editor-fold desc="结束滑动 finishSipper 调用刷新回调">
     private void finishSipper(float x1, float y1) {
-        if (mTargetCurrentOffset >= mTargetRefreshOffset ) {
+        if (mTargetCurrentOffset >= mTargetRefreshOffset) {
             //刷新点
             final int startValue = mTargetCurrentOffset;
             ValueAnimator targetAnimator = ValueAnimator.ofInt(startValue, mTargetRefreshOffset);
@@ -413,25 +516,23 @@ public class XRefreshLayout extends ViewGroup {
             animatorSet.setDuration(mMediumAnimationDuration);
             animatorSet.setInterpolator(accelerateInterpolator);
 //            if (!isRefreshing)
-                animatorSet.addListener(refreshAnimationListener);
+            animatorSet.addListener(refreshAnimationListener);
             animatorSet.start();
         } else {
             //没有到刷新点
-            if (!isRefreshing) {
-                moveToInitPosition();
-            }
+            moveToInitPosition();
 
         }
     }
     //</editor-fold>
 
-    //<editor-fold desc="滑动到初始位置 moveToInitPosition">
+    //<editor-fold desc="滑动到初始位置 moveToInitPosition short Duration">
 
     /**
      * 滚动sipper 和target 到初始位置
      */
     private void moveToInitPosition() {
-        Log.e(TAG, "moveToInitPosition  mTargetCurrentOffset： " + mTargetCurrentOffset);
+//        Log.e(TAG, "moveToInitPosition  mTargetCurrentOffset： " + mTargetCurrentOffset);
 
         mHeaderView.changeStatus(Status.SCROLL_TO_INIT);
 
@@ -445,7 +546,7 @@ public class XRefreshLayout extends ViewGroup {
 
         AnimatorSet animatorSet = new AnimatorSet();
         animatorSet.playTogether(targetAnimator, sipperAnimator);
-        animatorSet.setDuration(mMediumAnimationDuration);
+        animatorSet.setDuration(mShortAnimationDuration);
         animatorSet.setInterpolator(accelerateInterpolator);
         animatorSet.addListener(resetAnimationListener);
         animatorSet.start();
@@ -474,11 +575,13 @@ public class XRefreshLayout extends ViewGroup {
             mSipperCurrentOffset = target;
 
             mHeaderView.onPull(offset, mSipperCurrentOffset, mSipperInitTop, mSipperEndOffset);
-            if (mTargetCurrentOffset >= mTargetRefreshOffset && !isRefreshing) {
+            if (mTargetCurrentOffset >= mTargetRefreshOffset /*&& !isRefreshing*/) {
                 mHeaderView.changeStatus(Status.OVER_REFRESH_OFFSET);
                 // TODO: 2017/10/10 可能下面这个分支  的第二个条件有问题
-            } else if (mTargetCurrentOffset <= mTargetInitOffset && !isRefreshing) {
+            } else if (mTargetCurrentOffset <= mTargetInitOffset) {
                 mHeaderView.changeStatus(Status.IDLE);
+            } else if (mTargetCurrentOffset > mTargetInitOffset && !isRefreshing){
+                mHeaderView.changeStatus(Status.SCROLL_TO_INIT);
             }
         }
 
@@ -512,28 +615,6 @@ public class XRefreshLayout extends ViewGroup {
 
     }
     //</editor-fold >
-
-    /**
-     * 计算sipper 的新位置
-     *
-     * @param overscrollTop
-     * @return
-     */
-    //sipper 固定在sipperInitOffset 和 targetRefreshInitOffset之间
-    private int caculateSipperNewoffset1(int overscrollTop) {
-        int targetY = 0;
-        if (mTargetCurrentOffset >= mTargetRefreshOffset) {
-            //超过刷新线
-            targetY = mTargetInitOffset;
-        } else if (mTargetCurrentOffset <= mTargetInitOffset) {
-            targetY = mSipperInitTop;
-            //达到初始线
-        } else {
-            //中间过程
-            targetY = overscrollTop + mSipperCurrentOffset;
-        }
-        return targetY;
-    }
 
     private void startDragging(float x, float y) {
         int dy = (int) (y - mLastMotionY);
